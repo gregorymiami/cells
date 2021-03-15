@@ -37,6 +37,7 @@ let clearCanvas = () => {
 
 let drawRect = (x, y, color, width, height) => {
   context.strokeStyle = color;
+  context.lineWidth = 2;
   context.strokeRect(x, y, width, height);
 }
 
@@ -46,6 +47,7 @@ let drawRectFill = (x, y, color, width, height) => {
 }
 
 let getTopRight = (row, column) => {
+  // make this function take cell dims as input
   return { x: (row - 1) * 10, y: (column - 1) * 10 };
 }
 
@@ -59,9 +61,15 @@ let drawCellWall = (row, column, color) => {
   drawRect(y, x, color, cell_dims, cell_dims); 
 }
 
-let drawGrid = (algo) => {
-  for (let i = 1; i <= algo.rows; i++) {
-    for (let j = 1; j <= algo.columns; j++) {
+let drawCellAndWall = (row, column, color) => {
+  let { x, y } = getTopRight(row, column);
+  drawRect(y, x, "black", cell_dims, cell_dims); 
+  drawRectFill(y, x, color, cell_dims, cell_dims); 
+}
+
+let drawGrid = (rows, columns) => {
+  for (let i = 1; i <= rows; i++) {
+    for (let j = 1; j <= columns; j++) {
       drawCellWall(i, j, "black");
     }
   }
@@ -72,6 +80,12 @@ let drawAutomota = (grid_data) => {
     let coordinates = key.split(':');
     drawCell(parseInt(coordinates[0]), parseInt(coordinates[1]), value);
   }  
+}
+
+let getCellFromCoordinates = (x, y, cell_dims) => {
+  let row = Math.floor(y / cell_dims);
+  let column = Math.floor(x / cell_dims);
+  return { row, column };
 }
 
 class RockPaperScissors {
@@ -218,12 +232,12 @@ class GameOfLife {
 let doGameOfLife = () => {
   let gameOfLife = new GameOfLife();
   let algo = gameOfLife.getAlgo(rows, columns, [`51:51`,`52:51`,`53:51`,`51:52`,`52:50`], 1500);
-  drawGrid(algo);
+  drawGrid(algo.rows, algo.columns);
   drawAutomota(algo.grid);
   let loopId = setInterval(() => {
     algo = gameOfLife.getUpdate(algo);
     clearCanvas();
-    drawGrid(algo);
+    drawGrid(algo.rows, algo.columns);
     drawAutomota(algo.grid);
     algo.runs = algo.runs - 1;
     if (algo.runs <= 0) {
@@ -233,33 +247,18 @@ let doGameOfLife = () => {
   algo["loop"] = loopId;
 }
 
-let doRockPaperScissors = () => {
+let doRockPaperScissors = (initialConditions) => {
   let rockPaperScissors = new RockPaperScissors();
-  let initialConditions = [];
-
-  // For horizontal stripes, pretty boring
-  for (let i = 1; i <= rows; i++) {
-    for (let j = 1; j <= columns; j++) {
-      let color = "";
-      if ((i + j) % 3 === 0) {
-        color = "green";
-      } else if ((i + j) % 2 === 0) {
-        color = "red";
-      } else {
-        color = "blue";
-      }
-      initialConditions.push({ coordinates: `${i}:${j}`, color });
-    }
-  }
-  let algo = rockPaperScissors.getAlgo(rows, columns, initialConditions, 100);
-  drawGrid(algo);
+  let algo = rockPaperScissors.getAlgo(rows, columns, initialConditions, 5000);
+  clearCanvas();
   drawAutomota(algo.grid);
+  drawGrid(algo.rows, algo.columns);
 
   let loopId = setInterval(() => {
     algo = rockPaperScissors.getUpdate(algo);
     clearCanvas();
-    drawGrid(algo);
     drawAutomota(algo.grid);
+    drawGrid(algo.rows, algo.columns);
     algo.runs = algo.runs - 1;
     if (algo.runs <= 0) {
       clearInterval(algo.loop);
@@ -268,5 +267,99 @@ let doRockPaperScissors = () => {
   algo["loop"] = loopId;
 }
 
-// doGameOfLife();
-doRockPaperScissors();
+class RockPaperScissorsApp {
+  constructor(rows, columns) {
+    this.record = {};
+    this.rows = rows;
+    this.columns = columns;
+    this.brush = "white";
+    this.mousedown = false;
+    for (let i = 1; i <= this.rows; i++) {
+      for (let j = 1; j <= this.columns; j++) {
+        this.record[`${i}:${j}`] = "white"; 
+      }
+    }
+    drawAutomota(this.record);
+    drawGrid(this.rows, this.columns);
+    let div = document.getElementById("div");
+    let redButtonString = `<button id="red_button">Red</button>`;
+    let blueButtonString = `<button id="blue_button">Blue</button>`;
+    let greenButtonString = `<button id="green_button">Green</button>`;
+    let eraseButtonString = `<button id="erase_button">Erase</button>`;
+    let clearButtonString = `<button id="clear_button">Clear</button>`;
+    let startButtonString = `<button id="start_button">Start</button>`
+    div.innerHTML = `${redButtonString}${blueButtonString}${greenButtonString}${eraseButtonString}${clearButtonString}${startButtonString}`
+    let redButton = document.getElementById("red_button");
+    let blueButton = document.getElementById("blue_button");
+    let greenButton = document.getElementById("green_button");
+    let eraseButton = document.getElementById("erase_button");
+    let clearButton = document.getElementById("clear_button");
+    let startButton = document.getElementById("start_button");
+
+    clearButton.addEventListener("click", () => {
+      this.clear();
+    });
+    redButton.addEventListener("click", () => {
+      this.brush = "red";
+    });
+    blueButton.addEventListener("click", () => {
+      this.brush = "blue";
+    });
+    greenButton.addEventListener("click", () => {
+      this.brush = "green";
+    });
+    eraseButton.addEventListener("click", () => {
+      this.brush = "white";
+    });
+    canvas.addEventListener("click", (event) => {
+      if(!this.mousedown) {
+        this.mousedown = true;
+        this.draw(event);
+      } else {
+        this.mousedown = false;
+      }
+    });
+    canvas.addEventListener("mousemove", (event) => {
+      if (this.mousedown) {
+        this.draw(event);
+      }
+    });
+    startButton.addEventListener("click", () => {
+      this.start();
+    })
+  }
+
+  draw(event) {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    let { row, column } = getCellFromCoordinates(x, y, cell_dims);
+    this.record[`${row}:${column}`] = this.brush;
+    drawCell(row, column, this.brush);
+    drawGrid(this.rows, this.columns);
+  }
+
+  clear() {
+    for (let i = 1; i <= this.rows; i++) {
+      for (let j = 1; j <= this.columns; j++) {
+        this.record[`${i}:${j}`] = "white"; 
+      }
+    }
+    drawAutomota(this.record);
+    drawGrid(this.rows, this.columns);
+  }
+
+  start() {
+    let div = document.getElementById("div");
+    // you have to remove the event listeners
+    div.innerHTML = "";
+    clearCanvas();
+    let initialConditions = [];
+    for (let cell in this.record) {
+      initialConditions.push({ coordinates: cell, color: this.record[cell] });
+    }
+    doRockPaperScissors(initialConditions);
+  }
+}
+
+let rockPaperScissorsApp = new RockPaperScissorsApp(rows, columns);
