@@ -247,9 +247,9 @@ let doGameOfLife = () => {
   algo["loop"] = loopId;
 }
 
-let doRockPaperScissors = (initialConditions) => {
+let doRockPaperScissors = (initialConditions, runs) => {
   let rockPaperScissors = new RockPaperScissors();
-  let algo = rockPaperScissors.getAlgo(rows, columns, initialConditions, 5000);
+  let algo = rockPaperScissors.getAlgo(rows, columns, initialConditions, runs);
   clearCanvas();
   drawAutomota(algo.grid);
   drawGrid(algo.rows, algo.columns);
@@ -287,8 +287,9 @@ class RockPaperScissorsApp {
     let greenButtonString = `<button id="green_button">Green</button>`;
     let eraseButtonString = `<button id="erase_button">Erase</button>`;
     let clearButtonString = `<button id="clear_button">Clear</button>`;
-    let startButtonString = `<button id="start_button">Start</button>`
-    div.innerHTML = `${redButtonString}${blueButtonString}${greenButtonString}${eraseButtonString}${clearButtonString}${startButtonString}`
+    let startButtonString = `<button id="start_button">Start</button>`;
+    let runsInputString = `<label>Runs:<input id='runs_input' type="number"></label>`;
+    div.innerHTML = `${redButtonString}${blueButtonString}${greenButtonString}${eraseButtonString}${clearButtonString}${startButtonString}${runsInputString}`
     let redButton = document.getElementById("red_button");
     let blueButton = document.getElementById("blue_button");
     let greenButton = document.getElementById("green_button");
@@ -296,37 +297,54 @@ class RockPaperScissorsApp {
     let clearButton = document.getElementById("clear_button");
     let startButton = document.getElementById("start_button");
 
-    clearButton.addEventListener("click", () => {
-      this.clear();
-    });
-    redButton.addEventListener("click", () => {
-      this.brush = "red";
-    });
-    blueButton.addEventListener("click", () => {
-      this.brush = "blue";
-    });
-    greenButton.addEventListener("click", () => {
-      this.brush = "green";
-    });
-    eraseButton.addEventListener("click", () => {
-      this.brush = "white";
-    });
-    canvas.addEventListener("click", (event) => {
-      if(!this.mousedown) {
-        this.mousedown = true;
-        this.draw(event);
-      } else {
-        this.mousedown = false;
-      }
-    });
-    canvas.addEventListener("mousemove", (event) => {
-      if (this.mousedown) {
-        this.draw(event);
-      }
-    });
-    startButton.addEventListener("click", () => {
-      this.start();
-    })
+    this.setRedBrush = this.setRedBrush.bind(this);
+    this.setGreenBrush = this.setGreenBrush.bind(this);
+    this.setBlueBrush = this.setBlueBrush.bind(this);
+    this.setWhiteBrush = this.setWhiteBrush.bind(this);
+    this.clear = this.clear.bind(this);
+    this.start = this.start.bind(this);
+    this.clickCanvas = this.clickCanvas.bind(this);
+    this.paintCanvas = this.paintCanvas.bind(this);
+
+    clearButton.addEventListener("click", this.clear);
+    redButton.addEventListener("click", this.setRedBrush);
+    blueButton.addEventListener("click", this.setBlueBrush);
+    greenButton.addEventListener("click", this.setGreenBrush);
+    eraseButton.addEventListener("click", this.setWhiteBrush);
+    canvas.addEventListener("click", this.clickCanvas);
+    canvas.addEventListener("mousemove", this.paintCanvas);
+    startButton.addEventListener("click", this.start);
+  }
+
+  clickCanvas(event) {
+    if(!this.mousedown) {
+      this.mousedown = true;
+      this.draw(event);
+    } else {
+      this.mousedown = false;
+    }
+  }
+
+  paintCanvas(event) {
+    if (this.mousedown) {
+      this.draw(event);
+    }
+  }
+
+  setRedBrush() {
+    this.brush = "red";
+  }
+
+  setGreenBrush() {
+    this.brush = "green";
+  }
+
+  setBlueBrush() {
+    this.brush = "blue";
+  }
+
+  setWhiteBrush() {
+    this.brush = "white";
   }
 
   draw(event) {
@@ -351,14 +369,28 @@ class RockPaperScissorsApp {
 
   start() {
     let div = document.getElementById("div");
-    // you have to remove the event listeners
+    let runsInput = document.getElementById("runs_input");
+    let runs = parseInt(runsInput.value);
+    if (Number.isNaN(runs) || !Number.isInteger(runs) || runs <= 0) {
+      let errorMessageString = "<p id='runs_error'>Enter a valid positive integer for runs.</p>";
+      div.innerHTML += errorMessageString;
+      return;
+    }
+    document.getElementById("red_button").removeEventListener('click', this.setRedBrush);
+    document.getElementById("blue_button").removeEventListener('click', this.setBlueBrush);
+    document.getElementById("green_button").removeEventListener('click', this.setGreenBrush);
+    document.getElementById("erase_button").removeEventListener('click', this.setWhiteBrush);
+    document.getElementById("clear_button").removeEventListener('click', this.clear);
+    document.getElementById("start_button").removeEventListener('click', this.start);
+    canvas.removeEventListener("click", this.clickCanvas);
+    canvas.removeEventListener("mousemove", this.paintCanvas);
     div.innerHTML = "";
     clearCanvas();
     let initialConditions = [];
     for (let cell in this.record) {
       initialConditions.push({ coordinates: cell, color: this.record[cell] });
     }
-    doRockPaperScissors(initialConditions);
+    doRockPaperScissors(initialConditions, runs);
   }
 }
 
